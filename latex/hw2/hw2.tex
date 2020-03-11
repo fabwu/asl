@@ -1,0 +1,98 @@
+\documentclass[a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{minted}
+\usepackage{pgfplots}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usepackage{tikz-qtree}
+\usepackage{hyperref}
+\usepackage{tabularx}
+
+\pgfplotsset{compat=1.16}
+\renewcommand{\arraystretch}{1.5}
+
+\title{ASL Assignment 2}
+\author{Fabian Wüthrich}
+
+\begin{document}
+
+\maketitle
+
+\begin{enumerate}
+    \item Short project info (10 pts) \par
+    Done
+    
+    \item Optimization Blockers (25 pts)
+    
+    \begin{enumerate}
+        \item The following table shows the run time of each iterative improvement. 
+            
+        \begin{table}[h!]
+        \begin{center}
+        \begin{tabularx}{0.5\textwidth} { 
+          | >{\raggedleft\arraybackslash}X 
+          | >{\centering\arraybackslash}X | }
+            \hline
+            base line & $2.49 \cdot 10^7$ cycles \\ \hline
+            inlining & $1.31 \cdot 10^7$ cycles \\ \hline
+            strength reduction & $8.08 \cdot 10^6$ cycles \\ \hline
+            remove aliasing & $7.93 \cdot 10^6$ cycles \\ \hline
+            1x loop unrolling & $4.09 \cdot 10^6$ cycles \\ \hline
+            max. performance & $1.97 \cdot 10^6$ cycles \\ 
+            \hline
+        \end{tabularx}
+        \caption{Runtime optimizations on a Intel Xeon Silver 4210 processor}
+        \end{center}
+        \end{table}
+        
+        The simplest optimization was to inline the \verb|compute()| function, which removes the overhead of a function call and already gives a 2x speed-up.
+        
+        As we are allowed to rewrite expressions using rules of exact arithmetic, we simplified several expressions and moved costly computation (e.g. inverse square root) out of the inner loop. There is still a slight improvement but it is not as good as inlining.
+        
+        In order to help the compiler we tried to remove aliasing by using a local variable for the computation in the inner loop, which then get hopefully assign to a register. The improvement was only minimal but we still used local variables as it is good practice.
+        
+        The next big considerable improvement was unrolling the inner and the outer loop once. The unrolling removes the branching in the inner loop, which was particularly slow as the correct branch cannot be predicted accurately. 
+        
+        The last step was several unrollings of the outer loop. Now the computation can make optimal use of all ports and ILP comes in to our advantage. Unrolling the inner loop with accumulator did not give a significant improvement and increased the complexity of the code unnecessary. Similarly, unrolling the outer loop more than eight times did not increase performance so we finished optimizing at that point.
+        
+        \item The improved function is \textbf{13x} faster than the base line.
+        \item The outer loop performs $\frac{n}{8}$ iterations. Then we use 32 operations to precompute the values from $w$. The inner loops performs $\frac{n}{2}$ iterations. In the inner loop body we execute 48 operations. The total number of operations is therefore
+        \begin{equation*}
+            \frac{n}{8}(32+\frac{n}{2} \cdot 48) 
+        \end{equation*}
+        The benchmark sets $n = 1000$ so we get
+        \begin{equation*}
+            \frac{3'004'000 \, operations}{1.97 \cdot 10^6 \, cycles} \approx 1.5 \, flops/cycles 
+        \end{equation*}
+    \end{enumerate}
+    
+    \item Microbenchmarks (45 pts)
+    \begin{enumerate}
+        \item The Intel Optimization Manual lists a latency of 18 cycles and a gap of 6 cycles for the \verb|SQRTSD| instruction on a Skylake architecture. This values coincide with our measurements. This is as expected because we time only one instruction without dependencies and all data fits into L1. Therefore, the CPU can distribute the operations optimally and we hit the theoretical limit.
+        
+        \item The \textit{sigmoid1} function executes first an multiplication (\verb|MULSD|), then an addition (\verb|ADDSD|), a square root operation (\verb|SQRTSD|) and a final division (\verb|DIVSD|). As every operation depends on the result of the previous one, the CPU has to wait until each instruction has finished. The following table shows the expected latency/gap given by the Intel Optimization Manual.
+        
+        \begin{table}[h!]
+        \begin{center}
+        \begin{tabularx}{0.5\textwidth} { 
+           >{\raggedleft\arraybackslash}X 
+           >{\centering\arraybackslash}X 
+           >{\centering\arraybackslash}X 
+           }
+                            & Latency       & Gap \\
+            \texttt{MULSD}  & 3             & 0.5 \\
+            \texttt{ADDSD}  & 4             & 0.5 \\
+            \texttt{SQRTSD} & 18            & 6 \\
+            \texttt{DIVSD}  & 14            & 4 \\ \hline
+            \textbf{Total}  & \textbf{39}   & \textbf{11} \\
+        \end{tabularx}
+        \end{center}
+        \end{table}
+        
+        We measured a latency of 30-36 cycles and a gap of 8-10, which is a bit faster but still close to the expected values.
+    \end{enumerate}
+\end{enumerate}
+
+\end{document}
