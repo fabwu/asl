@@ -1,10 +1,7 @@
 # Advanced Systems Lab
 
-This course introduces the topic of high performance software development.
+Course at ETH Zurich which introduces the topic of high performance 
+software development.
 
-## Documentation
-
-Run the following command on the `doc/hw*` folder:
-```
-latexmk -pdf
-```
+This repository has my solutions for the homework assignments. The project
+is [here](https://github.com/fabwu/asl-project).
